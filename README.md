@@ -12,8 +12,8 @@ REM go build run.go
 
 
 
-编译windows
-REM windows make 
-set GOOS=windows
-go build run.go
-run.exe
+编译windows\n
+\nREM windows make 
+\nset GOOS=windows
+\ngo build run.go
+\nrun.exe
