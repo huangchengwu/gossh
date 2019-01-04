@@ -1,0 +1,197 @@
+<html>
+    <head >
+        <link rel="stylesheet" href="/home/www/js/xterm.css" />
+        <link rel="stylesheet" href="/home/www/js/bootstrap.min.css" />
+        <script src="/home/www/js/xterm.js"></script>
+        <script src="/home/www/js/jquery.min.js"></script>
+        <script src="/home/www/js/bootstrap.min.js"></script>
+        <title>{{ .Title }}</title>
+
+    
+        <style>
+            body {
+                color: #111;
+                margin: 20px;
+            }
+
+            #terminal-container {
+                margin: 0 auto;
+            }
+            #connect {
+                margin: 0 auto;
+            }
+            #terminal-container a {
+                color: #fff;
+            }
+            .panel-body{
+                background-color: #000;
+            }
+        </style>
+    </head>
+    <body>
+            <form class="form-inline">
+                    <div class="form-group">
+                        <label for="">IP</label>
+                        <input type="text" class="form-control" id="h" placeholder="192.168.234.8" >
+                    </div>
+                    <div class="form-group">
+                        <label for="">端口</label>
+                        <input type="text" class="form-control" id="p" placeholder="22" >
+                    </div>
+                    <div class="form-group">
+                        <label for="">用户</label>
+                        <input type="text" class="form-control" id="u" placeholder="root" >
+                    </div>
+                    <div class="form-group">
+                        <label for="">密码</label>
+                        <input type="password" class="form-control" id="passwd" placeholder="biostime123456" >
+                    </div>
+                    <button type="button" class="btn btn-default\" onclick="ws_connect()"  id="connect_container">连接</button>
+                    <button type="button" class="btn btn-default" onclick="ws_close()" id="drop_container" style="display:none">断开</button>
+                </form>
+                <h1 id="wlan">{{ .Wlanip }}</h1>
+
+
+        <div class="panel panel-default">
+            <div class="panel-heading">控制台</div>
+            <div class="panel-body">
+                <div id="terminal-container"></div>
+            </div>
+        </div>
+        <script>
+          $("#wlan").hide()
+            var h = document.getElementById('h');
+            var p = document.getElementById('p');
+            var u = document.getElementById('u');
+            var passwd = document.getElementById('passwd');
+
+            //获取缓冲中的账号
+            pass = getCookie("password");
+            user =  getCookie("user");
+            port =  getCookie("port");
+            host =  getCookie("host");
+            //渲染
+            h.value = host;
+            p.value = port;
+            u.value = user;
+            passwd.value = pass;
+
+
+            console.log(document.body.clientWidth)
+            cols=parseInt(document.body.clientWidth /9)
+            rows=parseInt(document.body.clientHeight / 25)
+            var socket
+            var term = new Terminal({
+                "cursorBlink":true,
+                "rows":rows,
+                "cols":cols,
+            })
+
+
+            function setCookie(cname,cvalue,exdays){
+                var d = new Date();
+                d.setTime(d.getTime()+(exdays*24*60*60*1000));
+                var expires = "expires="+d.toGMTString();
+                document.cookie = cname+"="+cvalue+"; "+expires;
+            }
+            function getCookie(cname){
+                 var name = cname + "=";
+                 var ca = document.cookie.split(';');
+                 for(var i=0; i<ca.length; i++) {
+                var c = ca[i].trim();
+                  if (c.indexOf(name)==0) { return c.substring(name.length,c.length); }
+                  }
+                 return "";
+            }
+
+
+            function clearCookie(name) {
+                    setCookie(name, "",-1);  
+        }
+
+
+
+            function ws_connect(){
+                    //保存账号到缓冲中
+
+                var wlan = document.getElementById("wlan").innerText;
+            
+
+                setCookie("password",passwd.value,30);
+                setCookie("user",u.value,30);
+                setCookie("port",p.value,30);
+                setCookie("host",h.value,30);
+
+                $.ajax({
+                
+                  type: 'POST',
+                  url: "http://"+wlan+":3001/login",
+                  data: JSON.stringify({
+                      user : u.value,
+                      pwd : passwd.value ,
+                      host : h.value+":"+p.value,
+                      height : String(rows),
+                      width :   String(cols),
+
+                  }),
+                  dataType: "json",
+                  success: function(msg){
+                    
+                    if (msg.status == "true"){
+                        $("#connect_container").hide()
+                        $("#drop_container").show()
+
+                    container = document.getElementById('terminal-container');
+                    //如果登录成功会返回一个socket连接
+                    url =  msg.sock;
+                    socket = new WebSocket(url);
+
+
+
+                    $("#terminal-container").html("")
+                    term.open(document.getElementById('terminal-container'));
+
+                    term.on('data', function (data) {
+                        console.log(data);
+                        socket.send(data);
+                    });
+
+                    socket.onmessage = function (e) {
+
+                        obj=JSON.parse(e.data);
+                        console.log(obj.result);
+                        term.write(obj.result);
+
+                    }
+                    socket.onclose = function (e) {
+                    
+                    location.reload();
+                        term.write("session is close");
+                        $("#connect_container").show()
+                        $("#drop_container").hide()
+                    }
+                        
+                    }else{
+                        location.reload();
+                        alert("链接失败"+msg.response)
+                        
+                
+                    }
+                
+                }
+                  
+                });
+
+            
+            }
+
+
+            
+            function ws_close(){
+                socket.close()
+                $("#connect_container").show()
+                $("#drop_container").hide()
+            }
+        </script>
+    </body>
+</html>
